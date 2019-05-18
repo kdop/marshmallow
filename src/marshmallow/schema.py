@@ -343,8 +343,8 @@ class BaseSchema(base.SchemaABC):
         pass
 
     def __init__(
-        self, only=None, exclude=(), many=False, context=None,
-        load_only=(), dump_only=(), partial=False, unknown=None,
+        self, *, only=None, exclude=(), many=False, context=None,
+        load_only=(), dump_only=(), partial=False, unknown=None
     ):
         # Raise error if only or exclude is passed as string, not list of strings
         if only is not None and not is_collection(only):
@@ -410,7 +410,7 @@ class BaseSchema(base.SchemaABC):
     ##### Serialization/Deserialization API #####
 
     @staticmethod
-    def _call_and_store(getter_func, data, field_name, error_store, index=None):
+    def _call_and_store(getter_func, data, *, field_name, error_store, index=None):
         """Call ``getter_func`` with ``data`` as its argument, and store any `ValidationErrors`.
 
         :param callable getter_func: Function for getting the serialized/deserialized
@@ -430,9 +430,9 @@ class BaseSchema(base.SchemaABC):
         return value
 
     def _serialize(
-        self, obj, fields_dict, error_store, many=False,
+        self, obj, fields_dict, *, error_store, many=False,
         accessor=None, dict_class=dict, index_errors=True,
-        index=None,
+        index=None
     ):
         """Takes raw data (a dict, list, or other object) and a dict of
         fields to output and serializes the data based on those fields.
@@ -458,7 +458,7 @@ class BaseSchema(base.SchemaABC):
             self._pending = True
             ret = [
                 self._serialize(
-                    d, fields_dict, error_store, many=False,
+                    d, fields_dict, error_store=error_store, many=False,
                     dict_class=dict_class, accessor=accessor,
                     index=idx, index_errors=index_errors,
                 )
@@ -485,7 +485,7 @@ class BaseSchema(base.SchemaABC):
         ret = dict_class(items)
         return ret
 
-    def dump(self, obj, many=None):
+    def dump(self, obj, *, many=None):
         """Serialize an object to native Python data types according to this
         Schema's fields.
 
@@ -524,8 +524,8 @@ class BaseSchema(base.SchemaABC):
         if not errors:
             result = self._serialize(
                 processed_obj,
-                self.fields,
-                error_store,
+                fields_dict=self.fields,
+                error_store=error_store,
                 many=many,
                 accessor=self.get_attribute,
                 dict_class=self.dict_class,
@@ -555,7 +555,7 @@ class BaseSchema(base.SchemaABC):
 
         return result
 
-    def dumps(self, obj, many=None, *args, **kwargs):
+    def dumps(self, obj, *args, many=None, **kwargs):
         """Same as :meth:`dump`, except return a JSON-encoded string.
 
         :param obj: The object to serialize.
@@ -574,8 +574,8 @@ class BaseSchema(base.SchemaABC):
         return self.opts.render_module.dumps(serialized, *args, **kwargs)
 
     def _deserialize(
-        self, data, fields_dict, error_store, many=False, partial=False,
-        unknown=RAISE, dict_class=dict, index_errors=True, index=None,
+        self, data, fields_dict, *, error_store, many=False, partial=False,
+        unknown=RAISE, dict_class=dict, index_errors=True, index=None
     ):
         """Deserialize ``data`` based on the schema defined by ``fields_dict``.
 
@@ -606,7 +606,7 @@ class BaseSchema(base.SchemaABC):
                 self._pending = True
                 ret = [
                     self._deserialize(
-                        d, fields_dict, error_store, many=False,
+                        d, fields_dict, error_store=error_store, many=False,
                         partial=partial, unknown=unknown,
                         dict_class=dict_class, index=idx,
                         index_errors=index_errors,
@@ -680,7 +680,7 @@ class BaseSchema(base.SchemaABC):
                         )
         return ret
 
-    def load(self, data, many=None, partial=None, unknown=None):
+    def load(self, data, *, many=None, partial=None, unknown=None):
         """Deserialize a data structure to an object defined by this Schema's fields.
 
         :param dict data: The data to deserialize.
@@ -708,7 +708,7 @@ class BaseSchema(base.SchemaABC):
         )
 
     def loads(
-        self, json_data, many=None, partial=None, unknown=None,
+        self, json_data, *, many=None, partial=None, unknown=None,
         **kwargs
     ):
         """Same as :meth:`load`, except it takes a JSON string as input.
@@ -736,9 +736,9 @@ class BaseSchema(base.SchemaABC):
         return self.load(data, many=many, partial=partial, unknown=unknown)
 
     def _run_validator(
-        self, validator_func, output,
+        self, validator_func, output, *,
         original_data, fields_dict, error_store, index=None,
-        many=False, pass_original=False,
+        many=False, pass_original=False
     ):
         try:
             if pass_original:  # Pass original, raw data (before unmarshalling)
@@ -748,7 +748,7 @@ class BaseSchema(base.SchemaABC):
         except ValidationError as err:
             error_store.store_error(err.messages, err.field_name, index=index)
 
-    def validate(self, data, many=None, partial=None):
+    def validate(self, data, *, many=None, partial=None):
         """Validate `data` against the schema, returning a dictionary of
         validation errors.
 
@@ -816,8 +816,8 @@ class BaseSchema(base.SchemaABC):
             # Deserialize data
             result = self._deserialize(
                 processed_data,
-                self.fields,
-                error_store,
+                fields_dict=self.fields,
+                error_store=error_store,
                 many=many,
                 partial=partial,
                 unknown=unknown,
@@ -1107,9 +1107,9 @@ class BaseSchema(base.SchemaABC):
                     self._run_validator(
                         validator,
                         item,
-                        orig,
-                        self.fields,
-                        error_store,
+                        original_data=orig,
+                        fields_dict=self.fields,
+                        error_store=error_store,
                         many=many,
                         index=idx,
                         pass_original=pass_original,
@@ -1118,9 +1118,9 @@ class BaseSchema(base.SchemaABC):
                 self._run_validator(
                     validator,
                     data,
-                    original_data,
-                    self.fields,
-                    error_store,
+                    original_data=original_data,
+                    fields_dict=self.fields,
+                    error_store=error_store,
                     many=many,
                     pass_original=pass_original,
                 )
@@ -1128,10 +1128,11 @@ class BaseSchema(base.SchemaABC):
     def _invoke_processors(
         self,
         tag,
+        *,
         pass_many,
         data,
         many,
-        original_data=None,
+        original_data=None
     ):
         key = (tag, pass_many)
         for attr_name in self._hooks[key]:
