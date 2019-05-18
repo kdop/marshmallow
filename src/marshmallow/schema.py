@@ -737,10 +737,13 @@ class BaseSchema(base.SchemaABC):
     def _run_validator(
         self, validator_func, output,
         original_data, fields_dict, error_store,
-        many, partial, index=None,
+        many, partial, pass_original, index=None,
     ):
         try:
-            validator_func(output, original_data=original_data, partial=partial, many=many)
+            if pass_original:  # Pass original, raw data (before unmarshalling)
+                validator_func(output, original_data, partial=partial, many=many)
+            else:
+                validator_func(output, partial=partial, many=many)
         except ValidationError as err:
             error_store.store_error(err.messages, err.field_name, index=index)
 
@@ -1101,6 +1104,7 @@ class BaseSchema(base.SchemaABC):
             validator_kwargs = validator.__marshmallow_hook__[(VALIDATES_SCHEMA, pass_many)]
             if field_errors and validator_kwargs['skip_on_field_errors']:
                 continue
+            pass_original = validator_kwargs.get('pass_original', False)
 
             if many and not pass_many:
                 for idx, (item, orig) in enumerate(zip(data, original_data)):
@@ -1113,6 +1117,7 @@ class BaseSchema(base.SchemaABC):
                         many=many,
                         partial=partial,
                         index=idx,
+                        pass_original=pass_original,
                     )
             else:
                 self._run_validator(
@@ -1122,6 +1127,7 @@ class BaseSchema(base.SchemaABC):
                     self.fields,
                     error_store,
                     many=many,
+                    pass_original=pass_original,
                     partial=partial,
                 )
 
